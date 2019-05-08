@@ -138,20 +138,6 @@ if ! sudo iptables -C INPUT -p tcp --dport 3000 -j ACCEPT 2>/dev/null ; then
   sudo iptables -I INPUT -p tcp --dport 3000 -j ACCEPT
 fi
 
-# Switch NetworkManager to internal DNS
-if [ "$MANAGE_BR_BRIDGE" == "y" ] ; then
-  sudo mkdir -p /etc/NetworkManager/conf.d/
-  sudo crudini --set /etc/NetworkManager/conf.d/dnsmasq.conf main dns dnsmasq
-  if [ "$ADDN_DNS" ] ; then
-    echo "server=$ADDN_DNS" | sudo tee /etc/NetworkManager/dnsmasq.d/upstream.conf
-  fi
-  if systemctl is-active --quiet NetworkManager; then
-    sudo systemctl reload NetworkManager
-  else
-    sudo systemctl restart NetworkManager
-  fi
-fi
-
 mkdir -p "$IRONIC_DATA_DIR/html/images"
 pushd "$IRONIC_DATA_DIR/html/images"
 if [ ! -f ironic-python-agent.initramfs ]; then
@@ -175,7 +161,7 @@ for name in ironic ironic-inspector dnsmasq httpd mariadb; do
 done
 
 # Remove existing pod
-if  sudo podman pod exists ironic-pod ; then 
+if  sudo podman pod exists ironic-pod ; then
     sudo podman pod rm ironic-pod -f
 fi
 
@@ -183,9 +169,24 @@ fi
 mariadb_password=$(echo $(date;hostname)|sha256sum |cut -c-20)
 
 # Create pod
-sudo podman pod create -n ironic-pod 
+sudo podman pod create -n ironic-pod
 
 mkdir -p $IRONIC_DATA_DIR
+
+# Switch NetworkManager to internal DNS
+if [ "$MANAGE_BR_BRIDGE" == "y" ] ; then
+  sudo mkdir -p /etc/NetworkManager/conf.d/
+  sudo crudini --set /etc/NetworkManager/conf.d/dnsmasq.conf main dns dnsmasq
+  if [ "$ADDN_DNS" ] ; then
+    echo "server=$ADDN_DNS" | sudo tee /etc/NetworkManager/dnsmasq.d/upstream.conf
+  fi
+  sudo systemctl restart dnsmasq
+  if systemctl is-active --quiet NetworkManager; then
+    sudo systemctl reload NetworkManager
+  else
+    sudo systemctl restart NetworkManager
+  fi
+fi
 
 # Start dnsmasq, http, mariadb, and ironic containers using same image
 sudo podman run -d --net host --privileged --name dnsmasq  --pod ironic-pod \

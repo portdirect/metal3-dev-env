@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -xe
+source ${HOME}/.bash_profile
 
 source utils/logging.sh
 source utils/common.sh
@@ -9,12 +10,14 @@ if [ ! -f $HOME/.ssh/id_rsa.pub ]; then
     ssh-keygen -f ~/.ssh/id_rsa -P ""
 fi
 
+
 # root needs a private key to talk to libvirt
 # See tripleo-quickstart-config/roles/virtbmc/tasks/configure-vbmc.yml
 if sudo [ ! -f /root/.ssh/id_rsa_virt_power ]; then
   sudo ssh-keygen -f /root/.ssh/id_rsa_virt_power -P ""
   sudo cat /root/.ssh/id_rsa_virt_power.pub | sudo tee -a /root/.ssh/authorized_keys
 fi
+
 
 ANSIBLE_FORCE_COLOR=true ansible-playbook \
     -e "working_dir=$WORKING_DIR" \
@@ -29,7 +32,7 @@ ANSIBLE_FORCE_COLOR=true ansible-playbook \
 
 # Allow local non-root-user access to libvirt
 # Restart libvirtd service to get the new group membership loaded
-if  id $USER | grep -q libvirt; then
+if ! id $USER | grep -q libvirt; then
   sudo usermod -a -G "libvirt" $USER
   sudo systemctl restart libvirtd
 fi
@@ -134,7 +137,7 @@ fi
 # Switch NetworkManager to internal DNS
 if [ "$MANAGE_BR_BRIDGE" == "y" ] ; then
   sudo mkdir -p /etc/NetworkManager/conf.d/
-  sudo crudini --set /etc/NetworkManager/conf.d/dnsmasq.conf main dns dnsmasq
+  sudo -s crudini --set /etc/NetworkManager/conf.d/dnsmasq.conf main dns dnsmasq
   if [ "$ADDN_DNS" ] ; then
     echo "server=$ADDN_DNS" | sudo tee /etc/NetworkManager/dnsmasq.d/upstream.conf
   fi

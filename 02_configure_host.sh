@@ -29,7 +29,7 @@ ANSIBLE_FORCE_COLOR=true ansible-playbook \
 
 # Allow local non-root-user access to libvirt
 # Restart libvirtd service to get the new group membership loaded
-if ! id $USER | grep -q libvirt; then
+if  id $USER | grep -q libvirt; then
   sudo usermod -a -G "libvirt" $USER
   sudo systemctl restart libvirtd
 fi
@@ -168,7 +168,7 @@ for name in ironic ironic-inspector dnsmasq httpd mariadb; do
 done
 
 # Remove existing pod
-if  sudo podman pod exists ironic-pod ; then 
+if  sudo podman pod exists ironic-pod ; then
     sudo podman pod rm ironic-pod -f
 fi
 
@@ -176,7 +176,7 @@ fi
 mariadb_password=$(echo $(date;hostname)|sha256sum |cut -c-20)
 
 # Create pod
-sudo podman pod create -n ironic-pod 
+sudo podman pod create -n ironic-pod
 
 mkdir -p $IRONIC_DATA_DIR
 

@@ -26,8 +26,10 @@ if ! grep -q zeromq /etc/yum.repos.d/epel.repo; then
   sudo sed -i '/enabled=1/a exclude=zeromq*' /etc/yum.repos.d/epel.repo
 fi
 
+# Upgrade packages as required
+sudo yum -y update
+
 # Install required packages
-# python-{requests,setuptools} required for tripleo-repos install
 sudo yum -y install \
   crudini \
   curl \
@@ -42,29 +44,7 @@ sudo yum -y install \
   python-requests \
   python-setuptools \
   vim-enhanced \
-  wget
-
-# We're reusing some tripleo pieces for this setup so clone them here
-cd
-if [ ! -d tripleo-repos ]; then
-  git clone https://git.openstack.org/openstack/tripleo-repos
-fi
-pushd tripleo-repos
-sudo python setup.py install
-popd
-
-# Needed to get a recent python-virtualbmc package
-sudo tripleo-repos current-tripleo
-
-# There are some packages which are newer in the tripleo repos
-sudo yum -y update
-
-# Setup yarn and nodejs repositories
-sudo curl -sL https://dl.yarnpkg.com/rpm/yarn.repo -o /etc/yum.repos.d/yarn.repo
-curl -sL https://rpm.nodesource.com/setup_10.x | sudo bash -
-
-# make sure additional requirments are installed
-sudo yum -y install \
+  wget \
   ansible \
   bind-utils \
   jq \
@@ -74,21 +54,26 @@ sudo yum -y install \
   libvirt-daemon-kvm \
   nodejs \
   podman \
-  python-ironicclient \
-  python-ironic-inspector-client \
+  python-devel \
   python-lxml \
   python-netaddr \
-  python-openstackclient \
-  python-virtualbmc \
   qemu-kvm \
   virt-install \
   unzip \
   yarn
 
+# Setup yarn and nodejs repositories
+sudo curl -sL https://dl.yarnpkg.com/rpm/yarn.repo -o /etc/yum.repos.d/yarn.repo
+curl -sL https://rpm.nodesource.com/setup_10.x | sudo bash -
+
 # Install python packages not included as rpms
 sudo pip install \
   lolcat \
-  yq
+  yq \
+  virtualbmc \
+  python-ironicclient \
+  python-ironic-inspector-client \
+  python-openstackclient
 
 if ! which minikube 2>/dev/null ; then
     curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 \
@@ -104,3 +89,20 @@ if ! which kubectl 2>/dev/null ; then
     curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl \
         && chmod +x kubectl && sudo mv kubectl /usr/local/bin/.
 fi
+
+sudo systemctl enable libvirtd.service
+sudo systemctl start libvirtd.service
+sudo systemctl status libvirtd.service
+sudo usermod -a -G libvirt $(whoami)
+newgrp libvirt <<EONG
+virsh net-define /usr/share/libvirt/networks/default.xml
+virsh net-autostart default
+virsh net-start default
+
+sudo bash -c 'echo "net.ipv4.ip_forward = 1" > /usr/lib/sysctl.d/50-default.conf'
+sudo /sbin/sysctl -p
+
+minikube start --vm-driver kvm2
+kubectl version
+minikube delete
+EONG

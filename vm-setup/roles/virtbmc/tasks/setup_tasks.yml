@@ -72,7 +72,7 @@
       Type=simple
       User=root
       Group=root
-      ExecStart=/usr/bin/vbmcd --foreground
+      ExecStart=/var/lib/openstack/bin/vbmcd --foreground
       Restart=always
       RestartSec=1
 

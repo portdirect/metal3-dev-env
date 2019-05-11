@@ -150,9 +150,20 @@ fi
 
 mkdir -p "$IRONIC_DATA_DIR/html/images"
 pushd "$IRONIC_DATA_DIR/html/images"
-if [ ! -f ironic-python-agent.initramfs ]; then
-    curl --insecure --compressed -L https://images.rdoproject.org/master/rdo_trunk/current-tripleo-rdo/ironic-python-agent.tar | tar -xf -
+
+RELEASE="stein"
+IMAGE_URL_BASE="http://tarballs.openstack.org/ironic-python-agent/tinyipa/files"
+IMAGE_INITRAMFS="ironic-python-agent.initramfs"
+IMAGE_INITRAMFS_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.gz"
+IMAGE_KERNEL="ironic-python-agent.kernel"
+IMAGE_KERNEL_URL="${IMAGE_URL_BASE}/tinyipa-stable-${RELEASE}.vmlinuz"
+if [ ! -f ./${IMAGE_INITRAMFS} ]; then
+  curl -L ${IMAGE_INITRAMFS_URL} -o ./${IMAGE_INITRAMFS}
 fi
+if [ ! -f ./${IMAGE_KERNEL} ]; then
+  curl -L ${IMAGE_KERNEL_URL} -o ./${IMAGE_KERNEL}
+fi
+
 CENTOS_IMAGE=CentOS-7-x86_64-GenericCloud-1901.qcow2
 if [ ! -f ${CENTOS_IMAGE} ] ; then
     curl --insecure --compressed -O -L http://cloud.centos.org/centos/7/images/${CENTOS_IMAGE}
